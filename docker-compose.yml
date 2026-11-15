@@ -1,0 +1,24 @@
+services:
+  wa-scheduler:
+    build: .
+    container_name: wa-scheduler
+    restart: unless-stopped
+    init: true
+    user: "${PUID:-1000}:${PGID:-1000}"
+    environment:
+      PORT: 8080
+      TZ: ${TZ:-Asia/Kolkata}
+      DATA_DIR: /app/data
+      APP_PASSWORD: ${APP_PASSWORD:?Set a 16+ character APP_PASSWORD in .env}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+    volumes:
+      - ./data:/app/data
+    ports:
+      - "${HOST_PORT:-8080}:8080"
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true

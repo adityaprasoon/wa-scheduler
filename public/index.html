@@ -139,7 +139,10 @@
                     <label for="jitterInput">Extra delay</label>
                     <div class="number-field"><input id="jitterInput" type="number" min="0" max="3600" value="0"><span>sec</span></div>
                   </div>
-                  <button class="primary-button schedule-button" type="submit">Schedule message</button>
+                  <div class="form-actions">
+                    <button class="secondary-button" id="cancelEditButton" type="button" hidden>Cancel</button>
+                    <button class="primary-button schedule-button" id="scheduleSubmitButton" type="submit">Schedule message</button>
+                  </div>
                 </div>
               </form>
             </section>

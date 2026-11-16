@@ -145,6 +145,8 @@ textarea { resize: vertical; line-height: 1.55; }
 .preview-time { color: #8b9992; font-size: 10px; }
 .message-preview { min-height: 48px; margin-top: 7px; padding: 10px 11px; border-left: 2px solid #e1b54f; background: #fffaf0; color: #52635b; font-size: 12px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }
 .form-bottom-row { display: flex; align-items: end; justify-content: space-between; gap: 12px; margin-top: 16px; }
+.form-actions { display: flex; align-items: center; gap: 8px; }
+.secondary-button { min-height: 39px; padding: 0 12px; border: 1px solid var(--line); border-radius: 4px; background: transparent; color: var(--ink); font-size: 11px; font-weight: 700; }
 .jitter-control label { display: block; margin-bottom: 6px; color: #3b4e48; font-size: 11px; font-weight: 700; }
 .number-field { display: flex; align-items: center; gap: 6px; }
 .number-field input { width: 76px; height: 39px; }

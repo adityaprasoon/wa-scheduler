@@ -70,6 +70,56 @@ describe('authenticated API', () => {
     assert.equal(schedule.recipient_jid, '919876543210@s.whatsapp.net');
     assert.ok(schedule.run_at_ms > Date.now());
 
+    const updatedTime = new Date(Date.now() + 2 * 60 * 60 * 1000);
+    const updatedRunAt = `${updatedTime.getFullYear()}-${String(updatedTime.getMonth() + 1).padStart(2, '0')}-${String(updatedTime.getDate()).padStart(2, '0')}T${String(updatedTime.getHours()).padStart(2, '0')}:${String(updatedTime.getMinutes()).padStart(2, '0')}`;
+    const updated = await fetch(`${baseUrl}/api/schedules/${schedule.id}`, {
+      method: 'PATCH',
+      headers: { cookie: sessionCookie, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        label: 'Updated label',
+        recipient: '+919876543210',
+        messageTemplate: 'Updated {{day}}',
+        scheduleType: 'once',
+        runAt: updatedRunAt,
+        jitterMaxSec: 30,
+      }),
+    });
+    assert.equal(updated.status, 200);
+    const updatedSchedule = await updated.json();
+    assert.equal(updatedSchedule.label, 'Updated label');
+    assert.equal(updatedSchedule.message_template, 'Updated {{day}}');
+    assert.equal(updatedSchedule.jitter_max_sec, 30);
+    assert.ok(updatedSchedule.run_at_ms > schedule.run_at_ms);
+
+    const executionId = store.claimExecution(schedule.id, {
+      schedule_id: schedule.id,
+      recipient_jid: updatedSchedule.recipient_jid,
+      recipient_name: updatedSchedule.recipient_name,
+      rendered_message: 'In progress',
+      executed_at_ms: Date.now(),
+      scheduled_for_ms: null,
+    });
+    const duringExecution = await fetch(`${baseUrl}/api/schedules/${schedule.id}`, {
+      method: 'PATCH',
+      headers: { cookie: sessionCookie, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        recipient: '+919876543210',
+        messageTemplate: 'Cannot update during send',
+        scheduleType: 'once',
+        runAt: updatedRunAt,
+      }),
+    });
+    assert.equal(duringExecution.status, 409);
+    store.finishExecution({ id: executionId, status: 'sent' });
+
+    const invalidUpdate = await fetch(`${baseUrl}/api/schedules/${schedule.id}`, {
+      method: 'PATCH',
+      headers: { cookie: sessionCookie, 'content-type': 'application/json' },
+      body: JSON.stringify({ recipient: '+919876543210', messageTemplate: 'Hi', scheduleType: 'cron', cronExpr: 'not cron' }),
+    });
+    assert.equal(invalidUpdate.status, 400);
+    assert.equal(store.getSchedule(schedule.id).message_template, 'Updated {{day}}');
+
     const invalidCron = await fetch(`${baseUrl}/api/schedules`, {
       method: 'POST',
       headers: { cookie: sessionCookie, 'content-type': 'application/json' },

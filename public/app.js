@@ -4,6 +4,8 @@ const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 const state = {
   timezone: 'Asia/Kolkata',
   scheduleType: 'once',
+  editingScheduleId: null,
+  schedulesById: new Map(),
   toastTimer: undefined,
   recipientTimer: undefined,
   previewTimer: undefined,
@@ -111,6 +113,7 @@ function makeAction(label, action, id, className = '') {
 
 function renderSchedules(schedules) {
   const rows = $('#scheduleRows');
+  state.schedulesById = new Map(schedules.map((schedule) => [String(schedule.id), schedule]));
   rows.replaceChildren();
   $('#scheduleCount').textContent = String(schedules.length);
   $('#emptySchedules').hidden = schedules.length > 0;
@@ -135,6 +138,7 @@ function renderSchedules(schedules) {
     const actions = document.createElement('td');
     actions.className = 'row-actions';
     if (['active', 'paused'].includes(schedule.status)) {
+      actions.append(makeAction('Edit', 'edit', schedule.id));
       actions.append(makeAction('Run now', 'run', schedule.id));
       actions.append(makeAction(schedule.status === 'active' ? 'Pause' : 'Resume', 'toggle', schedule.id));
     }
@@ -199,6 +203,51 @@ function setScheduleType(type) {
   $('#cronFields').hidden = type !== 'cron';
   $('#runAtInput').required = type === 'once';
   $('#cronInput').required = type === 'cron';
+}
+
+function resetScheduleForm() {
+  state.editingScheduleId = null;
+  $('#scheduleForm').reset();
+  $('#labelInput').value = '';
+  $('#recipientInput').value = '';
+  $('#recipientValue').value = '';
+  $('#recipientOptions').hidden = true;
+  $('#jitterInput').value = '0';
+  $('#cronPreset').value = 'custom';
+  setScheduleType('once');
+  $('#messagePreview').textContent = 'Your rendered message will appear here.';
+  $('#previewTime').textContent = '';
+  $('#composeTitle').textContent = 'Create a schedule';
+  $('#composeTitle').previousElementSibling.textContent = 'NEW MESSAGE';
+  $('#scheduleSubmitButton').textContent = 'Schedule message';
+  $('#cancelEditButton').hidden = true;
+}
+
+function editSchedule(schedule) {
+  state.editingScheduleId = schedule.id;
+  $('#labelInput').value = schedule.label;
+  $('#recipientInput').value = schedule.recipient_name || schedule.recipient_jid;
+  $('#recipientValue').value = schedule.recipient_jid;
+  $('#messageInput').value = schedule.message_template;
+  $('#jitterInput').value = String(schedule.jitter_max_sec);
+  setScheduleType(schedule.schedule_type);
+  if (schedule.schedule_type === 'once') {
+    const parts = dateParts(new Date(schedule.run_at_ms), state.timezone);
+    $('#runAtInput').value = `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
+  } else {
+    $('#cronInput').value = schedule.cron_expr;
+    $('#cronPreset').value = [...$('#cronPreset').options].some((option) => option.value === schedule.cron_expr)
+      ? schedule.cron_expr
+      : 'custom';
+    clearTimeout(state.cronTimer);
+    state.cronTimer = setTimeout(validateCron, 120);
+  }
+  $('#composeTitle').textContent = 'Edit schedule';
+  $('#composeTitle').previousElementSibling.textContent = 'EDIT SCHEDULE';
+  $('#scheduleSubmitButton').textContent = 'Save changes';
+  $('#cancelEditButton').hidden = false;
+  updatePreview();
+  $('#composeTitle').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function dateParts(date, timeZone) {
@@ -404,25 +453,30 @@ $('#scheduleForm').addEventListener('submit', async (event) => {
   else payload.cronExpr = $('#cronInput').value;
 
   try {
-    await api('/schedules', { method: 'POST', body: payload });
-    $('#scheduleForm').reset();
-    $('#jitterInput').value = '0';
-    $('#recipientValue').value = '';
-    $('#recipientOptions').hidden = true;
-    setScheduleType('once');
-    $('#messagePreview').textContent = 'Your rendered message will appear here.';
+    const editing = state.editingScheduleId !== null;
+    const path = editing ? `/schedules/${state.editingScheduleId}` : '/schedules';
+    await api(path, { method: editing ? 'PATCH' : 'POST', body: payload });
+    resetScheduleForm();
     await refreshLists();
-    showToast('Schedule created.');
+    showToast(editing ? 'Schedule updated.' : 'Schedule created.');
   } catch (error) {
     showToast(error.message, true);
   }
 });
+
+$('#cancelEditButton').addEventListener('click', resetScheduleForm);
 
 $('#scheduleRows').addEventListener('click', async (event) => {
   const button = event.target.closest('button[data-action]');
   if (!button) return;
   const id = button.dataset.id;
   const action = button.dataset.action;
+  if (action === 'edit') {
+    const schedule = state.schedulesById.get(id);
+    if (schedule) editSchedule(schedule);
+    else showToast('Schedule not found. Refresh and try again.', true);
+    return;
+  }
   try {
     if (action === 'run') {
       if (!window.confirm('Run this schedule now? This sends a real WhatsApp message.')) return;

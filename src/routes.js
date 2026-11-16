@@ -24,6 +24,38 @@ function validateRecipient(value, store) {
   return { recipient_jid, recipient_name };
 }
 
+function parseScheduleInput(body, store, scheduler) {
+  const scheduleType = body.scheduleType;
+  if (!['once', 'cron'].includes(scheduleType)) throw new Error('Choose a supported schedule type.');
+  const { recipient_jid, recipient_name } = validateRecipient(body.recipient, store);
+  const message_template = validateMessage(body.messageTemplate);
+  const label = typeof body.label === 'string' ? body.label.trim().slice(0, 120) : '';
+  const jitter_max_sec = asInteger(body.jitterMaxSec, 0);
+  if (jitter_max_sec < 0 || jitter_max_sec > 3600) throw new Error('Delay must be between 0 and 3600 seconds.');
+
+  let run_at_ms = null;
+  let cron_expr = null;
+  if (scheduleType === 'once') {
+    const runAt = parseLocalDateTime(body.runAt);
+    if (runAt.getTime() <= Date.now()) throw new Error('Choose a future date and time.');
+    run_at_ms = runAt.getTime();
+  } else {
+    cron_expr = typeof body.cronExpr === 'string' ? body.cronExpr.trim() : '';
+    if (!scheduler.validateCron(cron_expr)) throw new Error('Enter a valid five-field cron expression.');
+  }
+
+  return {
+    label,
+    recipient_jid,
+    recipient_name,
+    message_template,
+    schedule_type: scheduleType,
+    run_at_ms,
+    cron_expr,
+    jitter_max_sec,
+  };
+}
+
 export function createRoutes({ store, whatsapp, scheduler, auth }) {
   const router = Router();
 
@@ -82,38 +114,31 @@ export function createRoutes({ store, whatsapp, scheduler, auth }) {
 
   router.post('/schedules', (req, res, next) => {
     try {
-      const body = req.body || {};
-      const scheduleType = body.scheduleType;
-      if (!['once', 'cron'].includes(scheduleType)) throw new Error('Choose a supported schedule type.');
-      const { recipient_jid, recipient_name } = validateRecipient(body.recipient, store);
-      const message_template = validateMessage(body.messageTemplate);
-      const label = typeof body.label === 'string' ? body.label.trim().slice(0, 120) : '';
-      const jitter_max_sec = asInteger(body.jitterMaxSec, 0);
-      if (jitter_max_sec < 0 || jitter_max_sec > 3600) throw new Error('Delay must be between 0 and 3600 seconds.');
-
-      let run_at_ms = null;
-      let cron_expr = null;
-      if (scheduleType === 'once') {
-        const runAt = parseLocalDateTime(body.runAt);
-        if (runAt.getTime() <= Date.now()) throw new Error('Choose a future date and time.');
-        run_at_ms = runAt.getTime();
-      } else {
-        cron_expr = typeof body.cronExpr === 'string' ? body.cronExpr.trim() : '';
-        if (!scheduler.validateCron(cron_expr)) throw new Error('Enter a valid five-field cron expression.');
-      }
-
-      const schedule = store.createSchedule({
-        label,
-        recipient_jid,
-        recipient_name,
-        message_template,
-        schedule_type: scheduleType,
-        run_at_ms,
-        cron_expr,
-        jitter_max_sec,
-      });
+      const schedule = store.createSchedule(parseScheduleInput(req.body || {}, store, scheduler));
       scheduler.refresh(schedule);
       return res.status(201).json(schedule);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.patch('/schedules/:id', (req, res, next) => {
+    try {
+      const id = Number(req.params.id);
+      if (!Number.isSafeInteger(id) || id < 1) return res.status(400).json({ error: 'Invalid schedule id.' });
+      const current = store.getSchedule(id);
+      if (!current) return res.status(404).json({ error: 'Schedule not found.' });
+      if (!['active', 'paused'].includes(current.status)) {
+        return res.status(409).json({ error: 'Only active or paused schedules can be edited.' });
+      }
+
+      const schedule = store.updateSchedule({
+        id,
+        ...parseScheduleInput(req.body || {}, store, scheduler),
+      });
+      if (!schedule) return res.status(409).json({ error: 'This schedule is sending and cannot be edited.' });
+      scheduler.refresh(schedule);
+      return res.json(schedule);
     } catch (error) {
       next(error);
     }

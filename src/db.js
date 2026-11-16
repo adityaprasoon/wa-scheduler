@@ -83,6 +83,23 @@ export function createDatabase(filePath = process.env.DB_PATH || resolve('data/s
         @run_at_ms, @cron_expr, @jitter_max_sec, @created_at_ms
       )
     `),
+    updateSchedule: db.prepare(`
+      UPDATE schedules SET
+        label = @label,
+        recipient_jid = @recipient_jid,
+        recipient_name = @recipient_name,
+        message_template = @message_template,
+        schedule_type = @schedule_type,
+        run_at_ms = @run_at_ms,
+        cron_expr = @cron_expr,
+        jitter_max_sec = @jitter_max_sec
+      WHERE id = @id
+        AND status IN ('active', 'paused')
+        AND NOT EXISTS (
+          SELECT 1 FROM execution_logs
+          WHERE schedule_id = @id AND status = 'sending'
+        )
+    `),
     getSchedule: db.prepare('SELECT * FROM schedules WHERE id = ?'),
     getChat: db.prepare('SELECT jid, name, type FROM chats WHERE jid = ?'),
     listSchedules: db.prepare(`
@@ -174,6 +191,10 @@ export function createDatabase(filePath = process.env.DB_PATH || resolve('data/s
         created_at_ms: Date.now(),
       });
       return statements.getSchedule.get(Number(result.lastInsertRowid));
+    },
+    updateSchedule(schedule) {
+      if (statements.updateSchedule.run(schedule).changes !== 1) return null;
+      return statements.getSchedule.get(schedule.id);
     },
     getSchedule: (id) => statements.getSchedule.get(id),
     getChat: (jid) => statements.getChat.get(jid),

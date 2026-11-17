@@ -154,6 +154,8 @@ textarea { resize: vertical; line-height: 1.55; }
 .schedule-button { min-width: 150px; }
 
 .schedules-heading { padding: 0 22px; }
+.schedule-search { padding: 0 22px 16px; }
+.schedule-search input { height: 38px; font-size: 12px; }
 .count-badge, #logCount { display: inline-grid; min-width: 21px; height: 21px; place-items: center; margin-left: 4px; padding: 0 5px; border-radius: 11px; background: var(--green-soft); color: var(--green-dark); font-family: "Avenir Next", Avenir, sans-serif; font-size: 10px; font-weight: 700; vertical-align: 3px; }
 .table-scroll { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; text-align: left; }
@@ -202,6 +204,7 @@ td { padding: 12px; border-bottom: 1px solid #edf1ee; color: #4a5a53; font-size:
   .row-actions { min-width: 105px; }
   .row-actions button { padding-inline: 4px; }
   .schedules-heading { padding-inline: 16px; }
+  .schedule-search { padding-inline: 16px; }
   th:first-child, td:first-child { padding-left: 16px; }
 }
 

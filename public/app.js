@@ -7,6 +7,7 @@ const state = {
   editingScheduleId: null,
   schedules: [],
   schedulesById: new Map(),
+  scheduleSearch: '',
   scheduleSort: { key: null, direction: 1 },
   toastTimer: undefined,
   recipientTimer: undefined,
@@ -152,18 +153,23 @@ function renderSchedules(schedules) {
   state.schedules = schedules;
   state.schedulesById = new Map(schedules.map((schedule) => [String(schedule.id), schedule]));
   rows.replaceChildren();
-  $('#scheduleCount').textContent = String(schedules.length);
-  $('#emptySchedules').hidden = schedules.length > 0;
+  const searchTerm = state.scheduleSearch.trim().toLowerCase();
+  const matchingSchedules = searchTerm
+    ? schedules.filter((schedule) => `${schedule.label || ''}\n${schedule.message_template || ''}`.toLowerCase().includes(searchTerm))
+    : schedules;
+  $('#scheduleCount').textContent = String(matchingSchedules.length);
+  $('#emptySchedules').hidden = matchingSchedules.length > 0;
+  $('#emptySchedules p').textContent = searchTerm ? 'No matching schedules' : 'No schedules yet';
   updateScheduleSortHeaders();
 
   const visibleSchedules = state.scheduleSort.key
-    ? [...schedules].sort((left, right) => {
+    ? [...matchingSchedules].sort((left, right) => {
       const comparison = compareSchedules(left, right, state.scheduleSort.key);
       const isDatedVsRecurring = state.scheduleSort.key === 'when'
         && (left.schedule_type === 'once') !== (right.schedule_type === 'once');
       return isDatedVsRecurring ? comparison : comparison * state.scheduleSort.direction;
     })
-    : schedules;
+    : matchingSchedules;
   for (const schedule of visibleSchedules) {
     const row = document.createElement('tr');
     appendCell(row, schedule.recipient_name || schedule.recipient_jid, 'recipient-cell');
@@ -549,6 +555,11 @@ $('#scheduleTable').addEventListener('click', (event) => {
   const key = button.dataset.sortKey;
   state.scheduleSort.direction = state.scheduleSort.key === key ? -state.scheduleSort.direction : 1;
   state.scheduleSort.key = key;
+  renderSchedules(state.schedules);
+});
+
+$('#scheduleSearch').addEventListener('input', () => {
+  state.scheduleSearch = $('#scheduleSearch').value;
   renderSchedules(state.schedules);
 });
 

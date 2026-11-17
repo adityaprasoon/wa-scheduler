@@ -31,4 +31,4 @@ Phone numbers must include their country code. Saved contacts and groups are pop
 
 ## Local development
 
-Requires Node.js 22 or newer. Copy `.env.example` to `.env`, set `APP_PASSWORD`, then run `npm install` and `node --env-file=.env src/index.js`. The service listens on all interfaces for LAN use. Run `npm test` for the focused timezone, database, scheduler, and API tests.
+Requires Node.js 22 or newer. Copy `.env.example` to `.env`, set `APP_PASSWORD`, then run `npm install` and `node --env-file=.env src/index.js`. The service listens on all interfaces for LAN use. Run `npm test` for the focused timezone, database, scheduler, and API tests.₹

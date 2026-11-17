@@ -30,7 +30,10 @@ function toChat(entry, typeHint) {
   const jid = entry.id || entry.jid;
   if (!jid || typeof jid !== 'string' || !jid.includes('@')) return null;
   const type = typeHint || (jid.endsWith('@g.us') ? 'group' : 'individual');
-  return { jid, name: displayName(entry, jid), type };
+  let name = displayName(entry, jid);
+  if (entry.isCommunityAnnounce) name += ' (Announcements)';
+  else if (entry.isCommunity) name += ' (Community)';
+  return { jid, name, type };
 }
 
 export function createWhatsApp({ store, dataDir = process.env.DATA_DIR || 'data' }) {

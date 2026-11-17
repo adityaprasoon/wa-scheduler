@@ -158,9 +158,15 @@ textarea { resize: vertical; line-height: 1.55; }
 .table-scroll { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; text-align: left; }
 th { padding: 10px 12px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: #f8faf8; color: #73817a; font-size: 9px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; white-space: nowrap; }
+th[aria-sort] { padding-right: 12px; }
+.schedule-sort-button { display: inline-flex; align-items: center; gap: 5px; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; }
+.schedule-sort-button:hover { color: var(--green-dark); }
+.schedule-sort-button:focus-visible { outline: 2px solid var(--green); outline-offset: 3px; }
+.schedule-sort-button span { min-width: 7px; color: var(--green-dark); font-size: 9px; }
 th:first-child, td:first-child { padding-left: 22px; }
 td { padding: 12px; border-bottom: 1px solid #edf1ee; color: #4a5a53; font-size: 11px; vertical-align: top; }
 .recipient-cell { min-width: 118px; color: var(--ink); font-weight: 700; }
+.schedule-label { min-width: 90px; color: #52635b; }
 .schedule-time { min-width: 125px; color: #52635b; line-height: 1.45; }
 .schedule-message { min-width: 110px; max-width: 190px; color: #78857e; line-height: 1.45; overflow-wrap: anywhere; }
 .status-badge { display: inline-block; padding: 4px 6px; border-radius: 3px; background: #eff2f0; color: #67766f; font-size: 9px; font-weight: 800; white-space: nowrap; }

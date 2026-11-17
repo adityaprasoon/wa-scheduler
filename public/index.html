@@ -156,9 +156,14 @@
                 <span class="step-number">02</span>
               </div>
               <div class="table-scroll">
-                <table class="schedule-table">
+                <table class="schedule-table" id="scheduleTable">
                   <thead>
-                    <tr><th>Recipient</th><th>When</th><th>Message</th><th>Status</th><th><span class="sr-only">Actions</span></th></tr>
+                    <tr>
+                      <th aria-sort="none"><button class="schedule-sort-button" type="button" data-sort-key="recipient">Recipient <span data-sort-indicator aria-hidden="true"></span></button></th>
+                      <th aria-sort="none"><button class="schedule-sort-button" type="button" data-sort-key="label">Label <span data-sort-indicator aria-hidden="true"></span></button></th>
+                      <th aria-sort="none"><button class="schedule-sort-button" type="button" data-sort-key="when">When <span data-sort-indicator aria-hidden="true"></span></button></th>
+                      <th>Message</th><th>Status</th><th><span class="sr-only">Actions</span></th>
+                    </tr>
                   </thead>
                   <tbody id="scheduleRows"></tbody>
                 </table>

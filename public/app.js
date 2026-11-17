@@ -5,7 +5,9 @@ const state = {
   timezone: 'Asia/Kolkata',
   scheduleType: 'once',
   editingScheduleId: null,
+  schedules: [],
   schedulesById: new Map(),
+  scheduleSort: { key: null, direction: 1 },
   toastTimer: undefined,
   recipientTimer: undefined,
   previewTimer: undefined,
@@ -111,16 +113,61 @@ function makeAction(label, action, id, className = '') {
   return button;
 }
 
+function compareSchedules(left, right, key) {
+  if (key === 'when') {
+    const leftIsDated = left.schedule_type === 'once';
+    const rightIsDated = right.schedule_type === 'once';
+    if (leftIsDated !== rightIsDated) return leftIsDated ? -1 : 1;
+    const leftValue = leftIsDated ? left.run_at_ms : left.cron_expr;
+    const rightValue = rightIsDated ? right.run_at_ms : right.cron_expr;
+    return typeof leftValue === 'number'
+      ? leftValue - rightValue
+      : String(leftValue || '').localeCompare(String(rightValue || ''), undefined, { sensitivity: 'base', numeric: true });
+  }
+
+  const leftValue = key === 'recipient'
+    ? (left.recipient_name || left.recipient_jid)
+    : (left.label || '');
+  const rightValue = key === 'recipient'
+    ? (right.recipient_name || right.recipient_jid)
+    : (right.label || '');
+  if (!leftValue || !rightValue) return leftValue ? -1 : rightValue ? 1 : 0;
+  return String(leftValue).localeCompare(String(rightValue), undefined, { sensitivity: 'base', numeric: true });
+}
+
+function updateScheduleSortHeaders() {
+  for (const header of $$('[data-sort-key]')) {
+    const key = header.dataset.sortKey;
+    const isActive = state.scheduleSort.key === key;
+    header.setAttribute('aria-sort', isActive
+      ? (state.scheduleSort.direction === 1 ? 'ascending' : 'descending')
+      : 'none');
+    const indicator = $('[data-sort-indicator]', header);
+    indicator.textContent = isActive ? (state.scheduleSort.direction === 1 ? '↑' : '↓') : '';
+  }
+}
+
 function renderSchedules(schedules) {
   const rows = $('#scheduleRows');
+  state.schedules = schedules;
   state.schedulesById = new Map(schedules.map((schedule) => [String(schedule.id), schedule]));
   rows.replaceChildren();
   $('#scheduleCount').textContent = String(schedules.length);
   $('#emptySchedules').hidden = schedules.length > 0;
+  updateScheduleSortHeaders();
 
-  for (const schedule of schedules) {
+  const visibleSchedules = state.scheduleSort.key
+    ? [...schedules].sort((left, right) => {
+      const comparison = compareSchedules(left, right, state.scheduleSort.key);
+      const isDatedVsRecurring = state.scheduleSort.key === 'when'
+        && (left.schedule_type === 'once') !== (right.schedule_type === 'once');
+      return isDatedVsRecurring ? comparison : comparison * state.scheduleSort.direction;
+    })
+    : schedules;
+  for (const schedule of visibleSchedules) {
     const row = document.createElement('tr');
     appendCell(row, schedule.recipient_name || schedule.recipient_jid, 'recipient-cell');
+    appendCell(row, schedule.label || '—', 'schedule-label');
     const when = schedule.schedule_type === 'once'
       ? formatTime(schedule.run_at_ms)
       : `Cron · ${schedule.cron_expr}`;
@@ -494,6 +541,15 @@ $('#scheduleRows').addEventListener('click', async (event) => {
   } catch (error) {
     showToast(error.message, true);
   }
+});
+
+$('#scheduleTable').addEventListener('click', (event) => {
+  const button = event.target.closest('button[data-sort-key]');
+  if (!button) return;
+  const key = button.dataset.sortKey;
+  state.scheduleSort.direction = state.scheduleSort.key === key ? -state.scheduleSort.direction : 1;
+  state.scheduleSort.key = key;
+  renderSchedules(state.schedules);
 });
 
 async function initialize() {

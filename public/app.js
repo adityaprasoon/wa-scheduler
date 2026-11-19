@@ -190,6 +190,7 @@ function renderSchedules(schedules) {
 
     const actions = document.createElement('td');
     actions.className = 'row-actions';
+    actions.append(makeAction('Copy', 'copy', schedule.id));
     if (['active', 'paused'].includes(schedule.status)) {
       actions.append(makeAction('Edit', 'edit', schedule.id));
       actions.append(makeAction('Run now', 'run', schedule.id));
@@ -301,6 +302,30 @@ function editSchedule(schedule) {
   $('#cancelEditButton').hidden = false;
   updatePreview();
   $('#composeTitle').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function copySchedule(schedule) {
+  resetScheduleForm();
+  $('#labelInput').value = schedule.label || '';
+  $('#recipientInput').value = schedule.recipient_name || schedule.recipient_jid;
+  $('#recipientValue').value = schedule.recipient_jid;
+  $('#messageInput').value = schedule.message_template;
+  $('#jitterInput').value = String(schedule.jitter_max_sec ?? 0);
+  setScheduleType(schedule.schedule_type);
+  clearTimeout(state.cronTimer);
+  if (schedule.schedule_type === 'once') {
+    const parts = dateParts(new Date(schedule.run_at_ms), state.timezone);
+    $('#runAtInput').value = `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
+  } else {
+    $('#cronInput').value = schedule.cron_expr;
+    $('#cronPreset').value = [...$('#cronPreset').options].some((option) => option.value === schedule.cron_expr)
+      ? schedule.cron_expr
+      : 'custom';
+    state.cronTimer = setTimeout(validateCron, 120);
+  }
+  updatePreview();
+  $('#composeTitle').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  showToast('Schedule copied. Save to create a new schedule.');
 }
 
 function dateParts(date, timeZone) {
@@ -527,6 +552,12 @@ $('#scheduleRows').addEventListener('click', async (event) => {
   if (action === 'edit') {
     const schedule = state.schedulesById.get(id);
     if (schedule) editSchedule(schedule);
+    else showToast('Schedule not found. Refresh and try again.', true);
+    return;
+  }
+  if (action === 'copy') {
+    const schedule = state.schedulesById.get(id);
+    if (schedule) copySchedule(schedule);
     else showToast('Schedule not found. Refresh and try again.', true);
     return;
   }
